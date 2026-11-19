@@ -1,67 +1,68 @@
 
 package com.example.demo.User.controller;
 
+// DTO de resposta: não expõe a senha do usuário.
 import com.example.demo.User.DTO.UserResponseDTO;
+
+// Repositório e entidade.
 import com.example.demo.User.repository.IUserRepository;
 import com.example.demo.User.Model.UserModel;
-import org.springframework.beans.factory.annotation.Autowired;
+
+// Spring.
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/users")
 public class MyController {
 
-    @Autowired
-    private PasswordEncoder passwordEncoder;
+    private final PasswordEncoder passwordEncoder;
+    private final IUserRepository userRepository;
 
-    @Autowired
-    private IUserRepository userRepository;
+    // Injeção de dependências pelo construtor.
+    public MyController(
+            PasswordEncoder passwordEncoder,
+            IUserRepository userRepository
+    ) {
+        this.passwordEncoder = passwordEncoder;
+        this.userRepository = userRepository;
+    }
 
-    //ResponseEntity: permite devolver uma resposta HTTP personalizada.
-    //@RequestBody: recebe as informações enviadas na requisição.
-    //UserModel userModel representa os dados do usuário.
+    // Endpoint responsável pelo cadastro.
     @PostMapping("/")
-   public ResponseEntity create(@RequestBody UserModel userModel){
-        //userRepository: acessa o repositório.
-        //findByUsername(): procura um usuário pelo nome de usuário.
-        //userModel.getUserName(): pega o username que chegou na requisição.
-        var user = this.userRepository.findByUserName(userModel.getUserName());
+    public ResponseEntity<?> create(@RequestBody UserModel userModel) {
 
-        if(user != null) {
-            System.out.println("Usúario Já existe");
-            //ResponseEntity.status(): define o código da resposta HTTP.
-            //.body(): envia uma mensagem no corpo da resposta.
-            //HttpStatus.BAD_REQUEST: representa o erro HTTP 400.
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Usuário já existe");
+        // 1. Verifica se o nome de usuário já está cadastrado.
+        var user = userRepository.findByUserName(
+                userModel.getUserName()
+        );
+
+        if (user != null) {
+            return ResponseEntity
+                    .status(HttpStatus.BAD_REQUEST)
+                    .body("Usuário já existe.");
         }
 
-        // Criptografa a senha antes de salvar
+        // 2. Criptografa a senha antes de salvar no banco.
         userModel.setPassword(
                 passwordEncoder.encode(userModel.getPassword())
         );
 
-            //userRepository.save(): salva o usuário no banco de dados.
-            //userModel: contém as informações recebidas.
-            //userCreated: guarda o usuário que foi salvo.
-            //body(userCreated): devolve o usuário cadastrado na resposta.
-        var userCreated = this.userRepository.save(userModel);
+        // 3. Salva o usuário no banco de dados.
+        var userCreated = userRepository.save(userModel);
 
-        //cria uma resposta sem a senha
+        // 4. Cria uma resposta sem expor a senha.
         var response = new UserResponseDTO(
                 userCreated.getId(),
                 userCreated.getName(),
                 userCreated.getUserName()
         );
 
-
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
-
-        }
+        // 5. Retorna HTTP 201 (Created).
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(response);
     }
-
+}

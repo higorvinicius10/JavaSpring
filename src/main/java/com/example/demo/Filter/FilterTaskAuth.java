@@ -104,7 +104,9 @@ public class FilterTaskAuth extends OncePerRequestFilter {
             }
 
             // 8. Autenticação aprovada
-            filterChain.doFilter(request, response);
+
+                request.setAttribute("idUser", user.getId());
+                filterChain.doFilter(request, response);
 
         } catch (IllegalArgumentException e) {
             response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
